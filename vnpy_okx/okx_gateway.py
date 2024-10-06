@@ -122,6 +122,7 @@ class OkxGateway(BaseGateway):
         "Server": ["REAL", "AWS", "DEMO"],
         "Proxy Host": "",
         "Proxy Port": "",
+        "TD Mode": "cash,cross", #"cach,spot_isolated|cross,isolated
     }
 
     exchanges: Exchange = [Exchange.OKX]
@@ -140,6 +141,7 @@ class OkxGateway(BaseGateway):
         self.ws_private_api: OkxWebsocketPrivateApi = OkxWebsocketPrivateApi(self)
 
         self.orders: dict[str, OrderData] = {}
+        self.td_mode = "cash,cross"
 
     def connect(self, setting: dict) -> None:
         """Start server connections"""
@@ -149,6 +151,9 @@ class OkxGateway(BaseGateway):
         server: str = setting["Server"]
         proxy_host: str = setting["Proxy Host"]
         proxy_port: str = setting["Proxy Port"]
+        td_mode: str     = setting["TD Mode"]
+        
+        self.td_mode = td_mode
 
         if proxy_port.isdigit():
             proxy_port = int(proxy_port)
@@ -886,9 +891,15 @@ class OkxWebsocketPrivateApi(WebsocketClient):
         }
 
         if contract.product == Product.SPOT:
-            args["tdMode"] = "cash"
+            if "spot_isolated" in self.gateway.td_mode.split(",") != -1:
+                args["tdMode"] = "spot_isolated"
+            else:
+                args["tdMode"] = "cash"
         else:
-            args["tdMode"] = "cross"
+            if "isolated" in self.gateway.td_mode.split(",") != -1:
+                args["tdMode"] = "isolated"
+            else:
+                args["tdMode"] = "cross"
 
         self.reqid += 1
         okx_req: dict = {
